@@ -9,19 +9,20 @@ void OnTick()
    // Desenhar os retângulos das sessões de Londres e Nova York
    if (TimeCurrent() >= london_start && TimeCurrent() <= london_end)
    {
-      UpdateSessionRectangle(london_start, london_end, clrOrange, "Sessao_Londres");
+      double price_high = UpdateSessionRectangle(london_start, london_end, clrOrange, "Sessao_Londres");
+      UpdateSessionLabel(london_start, london_end, "London Session", clrOrange, "Label_Londres", price_high);
    }
    if (TimeCurrent() >= ny_start && TimeCurrent() <= ny_end)
    {
-      UpdateSessionRectangle(ny_start, ny_end, clrBlue, "Sessao_Nova_York");
+      double price_high = UpdateSessionRectangle(ny_start, ny_end, clrBlue, "Sessao_Nova_York");
+      UpdateSessionLabel(ny_start, ny_end, "New York Session", clrBlue, "Label_NY", price_high);
    }
    
    // Criar retângulos azuis para destacar áreas de consolidação ou movimentos significativos de preço
-   // Isso pode ser baseado em critérios que você definir, como número de candles de baixa/alta consecutivos
    HighlightConsolidationAreas();
 }
 
-void UpdateSessionRectangle(datetime start_time, datetime end_time, color rect_color, string rect_name)
+double UpdateSessionRectangle(datetime start_time, datetime end_time, color rect_color, string rect_name)
 {
    // Atualizar retângulo da sessão
    long chart_id = ChartID();
@@ -48,7 +49,7 @@ void UpdateSessionRectangle(datetime start_time, datetime end_time, color rect_c
       else
       {
          ObjectSetInteger(chart_id, rect_name, OBJPROP_COLOR, rect_color);
-         ObjectSetInteger(chart_id, rect_name, OBJPROP_STYLE, STYLE_SOLID);
+         ObjectSetInteger(chart_id, rect_name, OBJPROP_STYLE, STYLE_DOT);
          ObjectSetInteger(chart_id, rect_name, OBJPROP_WIDTH, 1);
          ObjectSetInteger(chart_id, rect_name, OBJPROP_BACK, true); // Para desenhar o retângulo em segundo plano
       }
@@ -62,7 +63,45 @@ void UpdateSessionRectangle(datetime start_time, datetime end_time, color rect_c
          ObjectMove(chart_id, rect_name, 1, end_time, price_low);
       }
    }
+
+   return price_high; // Retornar o preço máximo para ser usado na label
 }
+void UpdateSessionLabel(datetime start_time, datetime end_time, string label_text, color label_color, string label_name, double price_high)
+{
+   long chart_id = ChartID();
+   datetime label_time = start_time; // Colocar o texto alinhado ao início do retângulo
+
+   // Definir um valor pequeno de deslocamento para colocar o texto logo acima da linha superior do retângulo
+   double price_level = price_high + (SymbolInfoDouble(Symbol(), SYMBOL_POINT) * 7); // Deslocar 20 pips para cima do valor price_high
+
+   // Verificar se o label já existe
+   if (ObjectFind(chart_id, label_name) == -1)
+   {
+      // Criar o label de texto
+      if (!ObjectCreate(chart_id, label_name, OBJ_TEXT, 0, label_time, price_level))
+      {
+         Print("Erro ao criar label: ", GetLastError());
+      }
+      else
+      {
+         ObjectSetString(chart_id, label_name, OBJPROP_TEXT, label_text);
+         ObjectSetInteger(chart_id, label_name, OBJPROP_COLOR, label_color);
+         ObjectSetInteger(chart_id, label_name, OBJPROP_FONTSIZE, 10);
+         ObjectSetInteger(chart_id, label_name, OBJPROP_ANCHOR, ANCHOR_BOTTOM); // Ancorar a parte inferior do texto ao ponto especificado, garantindo que ele fique acima
+      }
+   }
+   else
+   {
+      // Atualizar a posição do label se estivermos dentro da sessão
+      if (TimeCurrent() >= start_time && TimeCurrent() <= end_time)
+      {
+         ObjectMove(chart_id, label_name, 0, label_time, price_level);
+      }
+   }
+}
+
+
+
 
 void HighlightConsolidationAreas()
 {
