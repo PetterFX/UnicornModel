@@ -6,20 +6,26 @@ void OnTick()
    datetime ny_start = london_end + 1 * 3600;
    datetime ny_end = ny_start + 5 * 3600;
    
-   // Desenhar os retângulos das sessões de Londres e Nova York
+   // Desenhar os retângulos e labels das sessões de Londres e Nova York
    if (TimeCurrent() >= london_start && TimeCurrent() <= london_end)
    {
-      double price_high = UpdateSessionRectangle(london_start, london_end, clrOrange, "Sessao_Londres");
-      UpdateSessionLabel(london_start, london_end, "London Session", clrOrange, "Label_Londres", price_high);
+      // Atualizar o retângulo da sessão de Londres
+      double price_high = UpdateSessionRectangle(london_start, london_end, clrMagenta, "Sessao_Londres");
+      
+      // Atualizar o label da sessão de Londres
+      UpdateSessionLabel(london_start, london_end, "London Session", clrMagenta, "Label_Londres", price_high);
    }
    if (TimeCurrent() >= ny_start && TimeCurrent() <= ny_end)
    {
-      double price_high = UpdateSessionRectangle(ny_start, ny_end, clrBlue, "Sessao_Nova_York");
-      UpdateSessionLabel(ny_start, ny_end, "New York Session", clrBlue, "Label_NY", price_high);
+      // Atualizar o retângulo da sessão de Nova York
+      double price_high = UpdateSessionRectangle(ny_start, ny_end, clrDarkGreen, "Sessao_Nova_York");
+      
+      // Atualizar o label da sessão de Nova York
+      UpdateSessionLabel(ny_start, ny_end, "New York Session", clrDarkGreen, "Label_NY", price_high);
    }
    
-   // Criar retângulos azuis para destacar áreas de consolidação ou movimentos significativos de preço
-   HighlightConsolidationAreas();
+   // Comentar a função HighlightConsolidationAreas se não estiver implementada
+   // HighlightConsolidationAreas();
 }
 
 double UpdateSessionRectangle(datetime start_time, datetime end_time, color rect_color, string rect_name)
@@ -49,7 +55,7 @@ double UpdateSessionRectangle(datetime start_time, datetime end_time, color rect
       else
       {
          ObjectSetInteger(chart_id, rect_name, OBJPROP_COLOR, rect_color);
-         ObjectSetInteger(chart_id, rect_name, OBJPROP_STYLE, STYLE_DOT);
+         ObjectSetInteger(chart_id, rect_name, OBJPROP_STYLE, STYLE_DOT); // Estilo da linha do retângulo alterado para pontilhado (Dot)
          ObjectSetInteger(chart_id, rect_name, OBJPROP_WIDTH, 1);
          ObjectSetInteger(chart_id, rect_name, OBJPROP_BACK, true); // Para desenhar o retângulo em segundo plano
       }
@@ -64,15 +70,16 @@ double UpdateSessionRectangle(datetime start_time, datetime end_time, color rect
       }
    }
 
-   return price_high; // Retornar o preço máximo para ser usado na label
+   return price_high; // Retornar o valor mais alto da sessão
 }
+
 void UpdateSessionLabel(datetime start_time, datetime end_time, string label_text, color label_color, string label_name, double price_high)
 {
    long chart_id = ChartID();
    datetime label_time = start_time; // Colocar o texto alinhado ao início do retângulo
 
-   // Definir um valor pequeno de deslocamento para colocar o texto logo acima da linha superior do retângulo
-   double price_level = price_high + (SymbolInfoDouble(Symbol(), SYMBOL_POINT) * 7); // Deslocar 20 pips para cima do valor price_high
+   // Definir um valor de deslocamento menor para colocar o texto logo acima da linha superior do retângulo
+   double price_level = price_high + (SymbolInfoDouble(Symbol(), SYMBOL_POINT) * 10); // Deslocar 10 pips para cima do valor price_high
 
    // Verificar se o label já existe
    if (ObjectFind(chart_id, label_name) == -1)
@@ -85,7 +92,7 @@ void UpdateSessionLabel(datetime start_time, datetime end_time, string label_tex
       else
       {
          ObjectSetString(chart_id, label_name, OBJPROP_TEXT, label_text);
-         ObjectSetInteger(chart_id, label_name, OBJPROP_COLOR, label_color);
+         ObjectSetInteger(chart_id, label_name, OBJPROP_COLOR, label_color); // Cor da label igual à cor do retângulo correspondente
          ObjectSetInteger(chart_id, label_name, OBJPROP_FONTSIZE, 10);
          ObjectSetInteger(chart_id, label_name, OBJPROP_ANCHOR, ANCHOR_BOTTOM); // Ancorar a parte inferior do texto ao ponto especificado, garantindo que ele fique acima
       }
@@ -98,14 +105,4 @@ void UpdateSessionLabel(datetime start_time, datetime end_time, string label_tex
          ObjectMove(chart_id, label_name, 0, label_time, price_level);
       }
    }
-}
-
-
-
-
-void HighlightConsolidationAreas()
-{
-   // Código para destacar áreas de consolidação baseado em critérios específicos
-   // Isso pode ser uma série de candles de alta/baixa, baixa volatilidade, etc.
-   // Implementar de acordo com as suas necessidades
 }
