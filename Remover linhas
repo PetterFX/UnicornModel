@@ -1,0 +1,25 @@
+//+------------------------------------------------------------------+
+//| Função para remover objetos das sessões                          |
+//+------------------------------------------------------------------+
+void RemoveSessionObjects()
+{
+    int totalObjects = ObjectsTotal(0);
+    for (int i = totalObjects - 1; i >= 0; i--)
+    {
+        string objName = ObjectName(0, i);
+        if (StringFind(objName, SESSION_PREFIX) == 0 || StringFind(objName, LABEL_PREFIX) == 0)
+        {
+            ObjectDelete(0, objName);
+        }
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Função OnDeinit - Remover objetos das sessões                    |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+    EventKillTimer();
+    RemoveSessionObjects();
+}
+// PODE SER UTIL PARA USAR NOS FVG
