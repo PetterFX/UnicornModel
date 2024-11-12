@@ -98,22 +98,30 @@ void OnTick() {
         RemoveAllFVGs();
     }
 
-    // Verificar e remover FVGs preenchidos
-    int total_objects = ObjectsTotal(0, -1, -1); // Contar todos os objetos no gráfico atual
-    for (int i = total_objects - 1; i >= 0; i--) {
-        string obj_name = ObjectName(0, i); // Obter o nome do objeto no gráfico atual
-        if (StringFind(obj_name, FVG_Prefix) == 0) { // Se o objeto tiver o prefixo FVG
-            double fvg_low = ObjectGetDouble(0, obj_name, OBJPROP_PRICE, 0);
-            double fvg_high = ObjectGetDouble(0, obj_name, OBJPROP_PRICE, 1);
-            double current_price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   // Defina o número de barras a verificar para preenchimento
+int barsToCheckForFill = 3;
 
-            // Se o preço atual tiver preenchido o FVG
-            if (current_price <= fvg_high && current_price >= fvg_low) {
-                ObjectDelete(0, obj_name); // Deletar o objeto com o nome especificado no gráfico atual
-                Print("FVG preenchido e removido: ", obj_name);
-            }
+// Verificar e remover FVGs preenchidos usando o fechamento da vela anterior
+int total_objects = ObjectsTotal(0, -1, -1); // Contar todos os objetos no gráfico atual
+for (int i = total_objects - 1; i >= 0; i--) {
+    string obj_name = ObjectName(0, i); // Obter o nome do objeto no gráfico atual
+    if (StringFind(obj_name, FVG_Prefix) == 0) { // Se o objeto tiver o prefixo FVG
+        double fvg_low = ObjectGetDouble(0, obj_name, OBJPROP_PRICE, 0);
+        double fvg_high = ObjectGetDouble(0, obj_name, OBJPROP_PRICE, 1);
+
+        // Obter os preços da barra anterior
+        double prev_bar_low = iLow(_Symbol, _Period, 1);
+        double prev_bar_high = iHigh(_Symbol, _Period, 1);
+        double prev_bar_close = iClose(_Symbol, _Period, 1);
+
+        // Se a barra anterior preencheu o FVG ao fechar
+        if (prev_bar_high >= fvg_low && prev_bar_low <= fvg_high && prev_bar_close <= fvg_high) {
+            ObjectDelete(0, obj_name); // Deletar o objeto com o nome especificado no gráfico atual
+            Print("FVG preenchido e removido: ", obj_name);
         }
     }
+}
+
 
     // Definir os horários das sessões de Londres e Nova York
     datetime london_start = iTime(NULL, PERIOD_M5, 0) - (iTime(NULL, PERIOD_M5, 0) % 86400) + 2 * 3600;
