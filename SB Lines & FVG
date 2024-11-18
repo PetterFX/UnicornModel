@@ -1,4 +1,14 @@
-// Declaração de variáveis globais
+// Variáveis globais para controle de liquidação
+bool londonHighLiquidated = false;
+bool londonLowLiquidated = false;
+bool nyHighLiquidated = false;
+bool nyLowLiquidated = false;
+double londonHigh = 0.0;
+double londonLow = 0.0;
+double nyHigh = 0.0;
+double nyLow = 0.0;
+
+// Variáveis globais existentes
 string totalFVGs[];         // Array para armazenar os nomes dos FVGs
 int barINDICES[];           // Array para armazenar os índices das barras dos FVGs
 int FVG_Rec_Ext_Bars = 5;   // Número de barras para estender o retângulo do FVG
@@ -99,6 +109,11 @@ void OnTick() {
     datetime startOfDay = iTime(_Symbol, PERIOD_D1, 0);
     if (currentTime == startOfDay) {
         RemoveAllFVGs();
+        // Reiniciar as variáveis de liquidação no início do dia
+        londonHighLiquidated = false;
+        londonLowLiquidated = false;
+        nyHighLiquidated = false;
+        nyLowLiquidated = false;
     }
 
     // Definir os horários das sessões de Londres e Nova York
@@ -106,6 +121,52 @@ void OnTick() {
     datetime london_end = london_start + 4 * 3600; // 06:00
     datetime ny_start = london_end + 1 * 3600; // 07:00
     datetime ny_end = ny_start + 5 * 3600; // 12:00
+
+    // Obter High e Low da vela de 1H anterior à sessão de Londres
+    datetime london_prev_hour = london_start - 3600; // 01:00 - 02:00
+    int barIndex = iBarShift(_Symbol, PERIOD_H1, london_prev_hour);
+    if (barIndex >= 0) {
+        londonHigh = iHigh(_Symbol, PERIOD_H1, barIndex);
+        londonLow = iLow(_Symbol, PERIOD_H1, barIndex);
+    }
+
+    // Verificar se o preço atual rompeu o High ou Low da vela 1H anterior da sessão de Londres, apenas durante a sessão de Londres
+    if (TimeCurrent() >= london_start && TimeCurrent() <= london_end) {
+        double currentBid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+        if (!londonHighLiquidated && currentBid > londonHigh) {
+            londonHighLiquidated = true;
+            Print("High da vela 1H anterior da sessão de Londres foi liquidado: ", londonHigh);
+            // Adicionar lógica para marcar o evento de liquidação do High
+        }
+        if (!londonLowLiquidated && currentBid < londonLow) {
+            londonLowLiquidated = true;
+            Print("Low da vela 1H anterior da sessão de Londres foi liquidado: ", londonLow);
+            // Adicionar lógica para marcar o evento de liquidação do Low
+        }
+    }
+
+    // Obter High e Low da vela de 1H das 09:00 NY
+    datetime ny_09_time = startOfDay + 9 * 3600; // 09:00 - 10:00
+    int nyBarIndex = iBarShift(_Symbol, PERIOD_H1, ny_09_time);
+    if (nyBarIndex >= 0) {
+        nyHigh = iHigh(_Symbol, PERIOD_H1, nyBarIndex);
+        nyLow = iLow(_Symbol, PERIOD_H1, nyBarIndex);
+    }
+
+    // Verificar se o preço atual rompeu o High ou Low da vela de 1H das 09:00 da sessão de Nova York, apenas durante a sessão de Nova York
+    if (TimeCurrent() >= ny_start && TimeCurrent() <= ny_end) {
+        double currentBid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+        if (!nyHighLiquidated && currentBid > nyHigh) {
+            nyHighLiquidated = true;
+            Print("High da vela 1H das 09:00 da sessão de Nova York foi liquidado: ", nyHigh);
+            // Adicionar lógica para marcar o evento de liquidação do High
+        }
+        if (!nyLowLiquidated && currentBid < nyLow) {
+            nyLowLiquidated = true;
+            Print("Low da vela 1H das 09:00 da sessão de Nova York foi liquidado: ", nyLow);
+            // Adicionar lógica para marcar o evento de liquidação do Low
+        }
+    }
 
     // Desenhar os retângulos e labels das sessões de Londres e Nova York
     if (TimeCurrent() >= london_start && TimeCurrent() <= london_end) {
@@ -118,7 +179,6 @@ void OnTick() {
     }
 
     // Adicionar linhas de High e Low da vela de 1 hora das 09:00 NY
-    datetime ny_09_time = startOfDay + 9 * 3600; // Horário das 09:00 NY
     if (currentTime >= ny_09_time && Period() == PERIOD_M5) {
         int barIndex = iBarShift(_Symbol, PERIOD_H1, ny_09_time);
         if (barIndex >= 0) {
@@ -181,6 +241,12 @@ void OnTick() {
         ObjectDelete(0, lowLineName_01);
     }
 
+    // Remover as linhas da vela das 09:00 ao fim da sessão de Nova York
+    if (currentTime > ny_end) {
+        ObjectDelete(0, highLineName_09);
+        ObjectDelete(0, lowLineName_09);
+    }
+
     // Verificar e desenhar FVGs nas últimas 20 barras (considerando apenas barras fechadas)
     int barsToCheck = 20; // Número de barras recentes a verificar para FVGs
     for (int i = 1; i < barsToCheck; i++) { // Começa de i=1 para garantir que estamos usando apenas barras fechadas
@@ -219,3 +285,5 @@ void OnTick() {
         }
     }
 }
+
+//+------------------------------------------------------------------+
