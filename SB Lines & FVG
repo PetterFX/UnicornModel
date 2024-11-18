@@ -3,13 +3,13 @@ string totalFVGs[];         // Array para armazenar os nomes dos FVGs
 int barINDICES[];           // Array para armazenar os índices das barras dos FVGs
 int FVG_Rec_Ext_Bars = 5;   // Número de barras para estender o retângulo do FVG
 string FVG_Prefix = "FVG_"; // Prefixo para os nomes dos objetos FVG
-string highLineName = "High_09_NY";
-string lowLineName = "Low_09_NY";
+string highLineName_09 = "High_09_NY";
+string lowLineName_09 = "Low_09_NY";
+string highLineName_01 = "High_01_NY";
+string lowLineName_01 = "Low_01_NY";
 color CLR_UP = clrGreen;    // Cor para FVG de alta
 color CLR_DOWN = clrRed;    // Cor para FVG de baixa
-double minPts = 5;         // Valor mínimo do gap para considerar um FVG
-
-
+double minPts = 5;          // Valor mínimo do gap para considerar um FVG
 
 // Função para criar retângulo de FVG
 void CreateRec(string name, datetime time1, double price1, datetime time2, double price2, color clr) {
@@ -25,7 +25,19 @@ void CreateRec(string name, datetime time1, double price1, datetime time2, doubl
     }
 }
 
-// Função para atualizar retângulo da sessão
+// Função para remover todos os FVGs com base no prefixo
+void RemoveAllFVGs() {
+    int total_objects = ObjectsTotal(0, -1, -1); // Contar todos os objetos no gráfico atual
+    for (int i = total_objects - 1; i >= 0; i--) {
+        string obj_name = ObjectName(0, i); // Obter o nome do objeto no gráfico atual
+        if (StringFind(obj_name, FVG_Prefix) == 0) { // Se o objeto tiver o prefixo FVG
+            ObjectDelete(0, obj_name); // Deletar o objeto com o nome especificado no gráfico atual
+            Print("FVG removido: ", obj_name);
+        }
+    }
+}
+
+// Função para atualizar o retângulo da sessão
 double UpdateSessionRectangle(datetime start_time, datetime end_time, color rect_color, string rect_name) {
     long chart_id = ChartID();
     double price_high = iHigh(NULL, PERIOD_M5, 0);
@@ -79,95 +91,94 @@ void UpdateSessionLabel(datetime start_time, datetime end_time, string label_tex
     }
 }
 
-// Função para remover todos os FVGs com base no prefixo
-void RemoveAllFVGs() {
-    int total_objects = ObjectsTotal(0, -1, -1); // Contar todos os objetos no gráfico atual
-    for (int i = total_objects - 1; i >= 0; i--) {
-        string obj_name = ObjectName(0, i); // Obter o nome do objeto no gráfico atual
-        if (StringFind(obj_name, FVG_Prefix) == 0) { // Se o objeto tiver o prefixo FVG
-            ObjectDelete(0, obj_name); // Deletar o objeto com o nome especificado no gráfico atual
-            Print("FVG removido: ", obj_name);
-        }
-    }
-}
-// Função para desenhar as linhas de High e Low da vela das 09:00 de Nova York
-void UpdateLinesForTargetCandle()
-{
-    datetime ny_09_time = TimeCurrent() - (TimeCurrent() % 86400) + 9 * 3600; // Horário das 09:00 NY no dia atual
-    if (Period() == PERIOD_M5) {
-        int barIndex = iBarShift(_Symbol, PERIOD_H1, ny_09_time);
-        if (barIndex >= 0) {
-            double high_09 = iHigh(_Symbol, PERIOD_H1, barIndex);
-            double low_09 = iLow(_Symbol, PERIOD_H1, barIndex);
-            if (ObjectFind(0, highLineName) == -1) {
-                ObjectCreate(0, highLineName, OBJ_TREND, 0, 0, high_09);
-                ObjectSetInteger(0, highLineName, OBJPROP_COLOR, clrBlue);
-                ObjectSetInteger(0, highLineName, OBJPROP_WIDTH, 1);
-            } else {
-                ObjectSetDouble(0, highLineName, OBJPROP_PRICE, high_09);
-            }
-            if (ObjectFind(0, lowLineName) == -1) {
-                ObjectCreate(0, lowLineName, OBJ_TREND, 0, 0, low_09);
-                ObjectSetInteger(0, lowLineName, OBJPROP_COLOR, clrRed);
-                ObjectSetInteger(0, lowLineName, OBJPROP_WIDTH, 1);
-            } else {
-                ObjectSetDouble(0, lowLineName, OBJPROP_PRICE, low_09);
-            }
-        }
-    }
-}
-
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |
 //+------------------------------------------------------------------+
 void OnTick() {
-    // Remover todos os FVGs às 00:00
     datetime currentTime = TimeCurrent();
     datetime startOfDay = iTime(_Symbol, PERIOD_D1, 0);
     if (currentTime == startOfDay) {
         RemoveAllFVGs();
     }
 
-   // Defina o número de barras a verificar para preenchimento
-int barsToCheckForFill = 3;
-
-// Verificar e remover FVGs preenchidos usando o fechamento da vela anterior
-int total_objects = ObjectsTotal(0, -1, -1); // Contar todos os objetos no gráfico atual
-for (int i = total_objects - 1; i >= 0; i--) {
-    string obj_name = ObjectName(0, i); // Obter o nome do objeto no gráfico atual
-    if (StringFind(obj_name, FVG_Prefix) == 0) { // Se o objeto tiver o prefixo FVG
-        double fvg_low = ObjectGetDouble(0, obj_name, OBJPROP_PRICE, 0);
-        double fvg_high = ObjectGetDouble(0, obj_name, OBJPROP_PRICE, 1);
-
-        // Obter os preços da barra anterior
-        double prev_bar_low = iLow(_Symbol, _Period, 1);
-        double prev_bar_high = iHigh(_Symbol, _Period, 1);
-        double prev_bar_close = iClose(_Symbol, _Period, 1);
-
-        // Se a barra anterior preencheu o FVG ao fechar
-        if (prev_bar_high >= fvg_low && prev_bar_low <= fvg_high && prev_bar_close <= fvg_high) {
-            ObjectDelete(0, obj_name); // Deletar o objeto com o nome especificado no gráfico atual
-            Print("FVG preenchido e removido: ", obj_name);
-        }
-    }
-}
-
-
     // Definir os horários das sessões de Londres e Nova York
-    datetime london_start = iTime(NULL, PERIOD_M5, 0) - (iTime(NULL, PERIOD_M5, 0) % 86400) + 2 * 3600;
-    datetime london_end = london_start + 4 * 3600;
-    datetime ny_start = london_end + 1 * 3600;
-    datetime ny_end = ny_start + 5 * 3600;
+    datetime london_start = startOfDay + 2 * 3600; // 02:00
+    datetime london_end = london_start + 4 * 3600; // 06:00
+    datetime ny_start = london_end + 1 * 3600; // 07:00
+    datetime ny_end = ny_start + 5 * 3600; // 12:00
 
     // Desenhar os retângulos e labels das sessões de Londres e Nova York
     if (TimeCurrent() >= london_start && TimeCurrent() <= london_end) {
         double price_high = UpdateSessionRectangle(london_start, london_end, clrMagenta, "Sessao_Londres");
         UpdateSessionLabel(london_start, london_end, "London Session", clrMagenta, "Label_Londres", price_high);
     }
-
     if (TimeCurrent() >= ny_start && TimeCurrent() <= ny_end) {
         double price_high = UpdateSessionRectangle(ny_start, ny_end, clrDarkGreen, "Sessao_Nova_York");
         UpdateSessionLabel(ny_start, ny_end, "New York Session", clrDarkGreen, "Label_NY", price_high);
+    }
+
+    // Adicionar linhas de High e Low da vela de 1 hora das 09:00 NY
+    datetime ny_09_time = startOfDay + 9 * 3600; // Horário das 09:00 NY
+    if (currentTime >= ny_09_time && Period() == PERIOD_M5) {
+        int barIndex = iBarShift(_Symbol, PERIOD_H1, ny_09_time);
+        if (barIndex >= 0) {
+            double high_09 = iHigh(_Symbol, PERIOD_H1, barIndex);
+            double low_09 = iLow(_Symbol, PERIOD_H1, barIndex);
+            datetime endTime = ny_09_time + 86400;
+
+            if (ObjectFind(0, highLineName_09) == -1) {
+                ObjectCreate(0, highLineName_09, OBJ_TREND, 0, ny_09_time, high_09, endTime, high_09);
+            } else {
+                ObjectMove(0, highLineName_09, 0, ny_09_time, high_09);
+                ObjectMove(0, highLineName_09, 1, endTime, high_09);
+            }
+            ObjectSetInteger(0, highLineName_09, OBJPROP_COLOR, clrBlue);
+            ObjectSetInteger(0, highLineName_09, OBJPROP_WIDTH, 1);
+
+            if (ObjectFind(0, lowLineName_09) == -1) {
+                ObjectCreate(0, lowLineName_09, OBJ_TREND, 0, ny_09_time, low_09, endTime, low_09);
+            } else {
+                ObjectMove(0, lowLineName_09, 0, ny_09_time, low_09);
+                ObjectMove(0, lowLineName_09, 1, endTime, low_09);
+            }
+            ObjectSetInteger(0, lowLineName_09, OBJPROP_COLOR, clrRed);
+            ObjectSetInteger(0, lowLineName_09, OBJPROP_WIDTH, 1);
+        }
+    }
+
+    // Adicionar linhas de High e Low da vela de 1 hora das 01:00 NY
+    datetime ny_01_time = startOfDay + 1 * 3600; // Horário das 01:00 NY
+    if (currentTime >= ny_01_time && Period() == PERIOD_M5) {
+        int barIndex_01 = iBarShift(_Symbol, PERIOD_H1, ny_01_time);
+        if (barIndex_01 >= 0) {
+            double high_01 = iHigh(_Symbol, PERIOD_H1, barIndex_01);
+            double low_01 = iLow(_Symbol, PERIOD_H1, barIndex_01);
+            datetime endTime_01 = ny_01_time + 86400;
+
+            if (ObjectFind(0, highLineName_01) == -1) {
+                ObjectCreate(0, highLineName_01, OBJ_TREND, 0, ny_01_time, high_01, endTime_01, high_01);
+            } else {
+                ObjectMove(0, highLineName_01, 0, ny_01_time, high_01);
+                ObjectMove(0, highLineName_01, 1, endTime_01, high_01);
+            }
+            ObjectSetInteger(0, highLineName_01, OBJPROP_COLOR, clrYellow);
+            ObjectSetInteger(0, highLineName_01, OBJPROP_WIDTH, 1);
+
+            if (ObjectFind(0, lowLineName_01) == -1) {
+                ObjectCreate(0, lowLineName_01, OBJ_TREND, 0, ny_01_time, low_01, endTime_01, low_01);
+            } else {
+                ObjectMove(0, lowLineName_01, 0, ny_01_time, low_01);
+                ObjectMove(0, lowLineName_01, 1, endTime_01, low_01);
+            }
+            ObjectSetInteger(0, lowLineName_01, OBJPROP_COLOR, clrOrange);
+            ObjectSetInteger(0, lowLineName_01, OBJPROP_WIDTH, 1);
+        }
+    }
+
+    // Remover as linhas da vela das 01:00 ao fim da sessão de Londres
+    if (currentTime > london_end) {
+        ObjectDelete(0, highLineName_01);
+        ObjectDelete(0, lowLineName_01);
     }
 
     // Verificar e desenhar FVGs nas últimas 20 barras (considerando apenas barras fechadas)
@@ -207,43 +218,4 @@ for (int i = total_objects - 1; i >= 0; i--) {
             }
         }
     }
-
-
-// Adicionar linhas de High e Low da vela de 1 hora das 09:00 NY
-    datetime ny_09_time = currentTime - (currentTime % 86400) + 9 * 3600; // Horário das 09:00 NY no dia atual
-
-    if (currentTime >= ny_09_time && Period() == PERIOD_M5) {
-        // Obter o índice da vela de 1 hora das 09:00 no período H1
-        int barIndex = iBarShift(_Symbol, PERIOD_H1, ny_09_time);
-
-        // Verificar se a vela das 09:00 existe no gráfico de 1 hora
-        if (barIndex >= 0) {
-            double high_09 = iHigh(_Symbol, PERIOD_H1, barIndex); // High da vela de 1 hora das 09:00
-            double low_09 = iLow(_Symbol, PERIOD_H1, barIndex);   // Low da vela de 1 hora das 09:00
-            datetime endTime = ny_09_time + 86400; // Estender a linha por um dia (ajustável)
-
-            // Criar ou atualizar a linha de tendência para o High
-            if (ObjectFind(0, highLineName) == -1) {
-                ObjectCreate(0, highLineName, OBJ_TREND, 0, ny_09_time, high_09, endTime, high_09);
-            } else {
-                ObjectMove(0, highLineName, 0, ny_09_time, high_09);
-                ObjectMove(0, highLineName, 1, endTime, high_09);
-            }
-            ObjectSetInteger(0, highLineName, OBJPROP_COLOR, clrBlue);
-            ObjectSetInteger(0, highLineName, OBJPROP_WIDTH, 1);
-            ObjectSetInteger(0, highLineName, OBJPROP_STYLE, STYLE_DOT);
-
-            // Criar ou atualizar a linha de tendência para o Low
-            if (ObjectFind(0, lowLineName) == -1) {
-                ObjectCreate(0, lowLineName, OBJ_TREND, 0, ny_09_time, low_09, endTime, low_09);
-            } else {
-                ObjectMove(0, lowLineName, 0, ny_09_time, low_09);
-                ObjectMove(0, lowLineName, 1, endTime, low_09);
-            }
-            ObjectSetInteger(0, lowLineName, OBJPROP_COLOR, clrRed);
-            ObjectSetInteger(0, lowLineName, OBJPROP_WIDTH, 1);
-            ObjectSetInteger(0, lowLineName, OBJPROP_STYLE, STYLE_DOT);
-        }
-    }
-
-    }
+}
